@@ -2,6 +2,8 @@
 
 Expose [Model Context Protocol](https://modelcontextprotocol.io) servers as tools inside [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). A dsh **bundle** with both a server half (connects to MCP servers, registers their tools) and a client half (a settings UI in the web app).
 
+Made with DeepSeek V4 Flash.
+
 ## Features
 
 - **stdio, streamable http, and legacy SSE** transports — one shared endpoint field, tabs in the UI
@@ -24,6 +26,14 @@ dsh --profile <name>
 ```
 
 Then open Settings → **MCP Servers**, add a server, hit **Test**, and **Save**.
+
+### Other install methods
+
+From a built tarball (`npm run pack` produces `dsh-mcp-servers-<version>.tgz`):
+
+```sh
+dsh plugin --profile <name> add ./dsh-mcp-servers-<version>.tgz
+```
 
 Rebuild after changes with `npm run build` — profiles load the built `dist/` and `client/client.js`, not the sources.
 
@@ -61,7 +71,7 @@ npm run pack         # build + produce dsh-mcp-servers-<version>.tgz
 npm run publish:npm  # build + publish to npm (run `npm login` first)
 ```
 
-Versioning is date-based and bumps on every build: `1.0.<YYMMDD>` (e.g. `1.0.260817`).
+Versioning is build-based: `1.<YYMMDD>.<build>` (e.g. `1.260817.1`); the counter increments on every build and resets each day.
 
 The client UI follows the Harness design system: primitives are host-injected externals (`@deepseek-ai/dsh-client-ui-primitives`) and native controls use `--dsw-*` theme tokens with hex fallbacks.
 
@@ -71,4 +81,3 @@ The client UI follows the Harness design system: primitives are host-injected ex
 - MCP results render as text; image/resource blocks collapse to JSON/text, not rich blocks.
 - WebDAV requires an https endpoint; credentials in the URL are rejected (passed separately).
 - Config/WebDAV routes are loopback-only.
-- Reconnects are a full pass over all servers (parallel), so one server's drop briefly re-registers the others; status dots are not affected.
