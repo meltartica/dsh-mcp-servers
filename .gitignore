@@ -1,0 +1,27 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+client/
+
+# package manager
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+.npm/
+.pnpm-store/
+
+# logs
+*.log
+npm-debug.log*
+
+# editor / os
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# temp
+.tmp/
+*.tgz

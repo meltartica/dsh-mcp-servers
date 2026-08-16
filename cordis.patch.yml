@@ -1,0 +1,3 @@
+- insert:
+    - id: mcp-servers
+      name: dsh-mcp-servers
