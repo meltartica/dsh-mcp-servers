@@ -1,6 +1,6 @@
 {
   "name": "dsh-mcp-servers",
-  "version": "1.260817.6",
+  "version": "1.260817.11",
   "description": "DeepSeek Harness bundle that exposes Model Context Protocol (MCP) servers — stdio, streamable HTTP and legacy SSE — as native Harness tools, with a settings UI, live status, auto-reconnect, and backup/restore via local files or WebDAV.",
   "type": "module",
   "main": "./dist/index.js",
