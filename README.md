@@ -7,7 +7,8 @@ Made with DeepSeek V4 Flash.
 ## Features
 
 - **stdio, streamable http, and legacy SSE** transports — one shared endpoint field, tabs in the UI
-- **Tools registered automatically** under `<serverId>_<toolName>` (e.g. server id `shadcn` → `shadcn_get_component`)
+- **Tools registered automatically** under `mcp__<serverId>__<toolName>` — the same server-qualified shape the official `@deepseek-ai/dsh-mcp-client` and Claude Code use (e.g. server id `shadcn` → `mcp__shadcn__get_component`); names are normalized to `[A-Za-z0-9_-]`, capped at 64 chars, and get a deterministic 12-hex hash suffix when normalization/truncation would collide
+- **`tools/list_changed` re-sync** — when a server signals its tool list changed, the generation re-registers in place (old tools stay live until the new set registers)
 - **Live status dots** — green when connected, red with the reason on failure; auto-reconnects with backoff when a connection drops (idle SSE streams, crashed processes)
 - **Test button** per card — probes connect + tool listing against the current draft without registering anything
 - **Edit cards** — type tabs, command/args textarea, env variables (or http headers) as key/value rows with show/hide values, paste `.env` from the clipboard, enabled switch

@@ -11,6 +11,8 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
+import { ToolListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js'
+import { publicToolName } from './naming.js'
 import { sanitizeSchema } from './sanitize.js'
 
 export const name = 'mcp-servers'
@@ -197,11 +199,26 @@ export function apply(ctx: Context) {
   const connectServer = async (server: McpServerConfig): Promise<Connection> => {
     const client = new Client({ name: 'dsh-mcp', version: '1.0.0' })
     await client.connect(createTransport(server))
-    const { tools } = await client.listTools()
+    const conn: Connection = { client, disposers: [], toolCount: 0, closing: false }
+    conn.disposers = await registerTools(server, client)
+    conn.toolCount = conn.disposers.length
+    // Real-time status: a dropped transport (child process exit, network loss)
+    // unregisters the tools and marks the server down until the next start().
+    client.onclose = () => { if (!conn.closing) onDisconnect(server.id, 'connection closed') }
+    client.onerror = (err) => { if (!conn.closing) onDisconnect(server.id, shortErr(err)) }
+    // Re-sync the tool generation when the server signals a changed tool list.
+    client.setNotificationHandler(ToolListChangedNotificationSchema, () => { void resync(server.id) })
+    return conn
+  }
 
+  // Register one full generation of a server's tools; used by connect and by
+  // the list_changed re-sync. The old generation is disposed only AFTER a new
+  // one registers, so a failed fetch keeps the previous tools live.
+  const registerTools = async (server: McpServerConfig, client: Client): Promise<(() => void)[]> => {
+    const { tools } = await client.listTools()
     const disposers: (() => void)[] = []
     for (const tool of tools) {
-      const fullName = `${server.id}_${tool.name}`
+      const fullName = publicToolName(server.id, tool.name)
       const definition: Parameters<typeof ctx.tools.register>[0] = {
         name: fullName,
         description: tool.description ?? `MCP tool ${tool.name} (server ${server.id})`,
@@ -225,13 +242,24 @@ export function apply(ctx: Context) {
         ctx.logger?.warn(`[mcp] ${server.id}: skipped tool ${tool.name}: ${err instanceof Error ? err.message : err}`)
       }
     }
-    const conn: Connection = { client, disposers, toolCount: disposers.length, closing: false }
-    // Real-time status: a dropped transport (child process exit, network loss)
-    // unregisters the tools and marks the server down until the next start().
-    client.onclose = () => { if (!conn.closing) onDisconnect(server.id, 'connection closed') }
-    client.onerror = (err) => { if (!conn.closing) onDisconnect(server.id, shortErr(err)) }
-    return conn
+    return disposers
   }
+
+  const resync = async (id: string) => {
+    const conn = connections.get(id)
+    const server = serverConfig(id)
+    if (!conn || !server || conn.closing) return
+    try {
+      const disposers = await registerTools(server, conn.client)
+      for (const dispose of conn.disposers) { try { dispose() } catch { /* already gone */ } }
+      conn.disposers = disposers
+      conn.toolCount = disposers.length
+      ctx.logger?.info(`[mcp] ${id}: re-synced ${disposers.length} tools`)
+    } catch (err) {
+      ctx.logger?.warn(`[mcp] ${id}: re-sync failed, keeping previous tools: ${shortErr(err)}`)
+    }
+  }
+  const serverConfig = (id: string) => scope.get().servers.find((s) => s.id === id)
 
   const onDisconnect = (id: string, reason: string) => {
     const conn = connections.get(id)
